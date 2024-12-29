@@ -4,6 +4,8 @@ from PIL import Image, ImageFont, ImageDraw
 import math
 from helper import Helper
 from io import StringIO
+from Effect import Effect
+
 
 # some gradients to play with
 
@@ -44,7 +46,7 @@ class ImageAsciiGenerator:
     height_width_ratio = 2
 
     def __init__(self, image: np.array, font_size=8, ascii_gradient=' .-;+=xX$█', use_contrast=False,
-                 background_color=(66, 5, 5), foreground_color=(164, 255, 45), invert_gradient=False):
+                 background_color=(66, 5, 5), foreground_color=(164, 255, 45), invert_gradient=False, effect=None):
         """ImageAsciiGenerator
 
         :param image: original image to be converted
@@ -54,6 +56,7 @@ class ImageAsciiGenerator:
         :param background_color: Color of the background in the final image
         :param foreground_color: Color of the text in the final image
         :param invert_gradient: Whether to reverse the gradient
+        :param effect: specific effect to put on the image (can overwrite the color parameters)
         """
         self.text_size = font_size
         if invert_gradient:
@@ -69,8 +72,8 @@ class ImageAsciiGenerator:
         self.use_contrast = use_contrast
         self.bg_color = background_color
         self.fg_color = foreground_color
+        self.effect = effect
         self.divider = 255 / (len(self.ascii_gradient) - 1)
-
 
     def convert(self) -> Image:
         """Main function of the ImageAsciiGenerator Class
@@ -79,10 +82,13 @@ class ImageAsciiGenerator:
         """
         resized = self.__adjust_image()
         final_txt = self.__pixels_to_txt(resized)
+        if self.effect is not None:
+            return self.__draw_text_on_img_effect(final_txt)
+
         if self.use_contrast:
             return self.__draw_text_on_img_with_contrast(final_txt)
         else:
-            return self.__draw_text_on_image(final_txt)
+            return self.__draw_text_on_img(final_txt)
 
     def __get_gradient_index(self, brightness: float):
         # limits the range of values to just x values, where x represents the length of the gradient
@@ -136,13 +142,67 @@ class ImageAsciiGenerator:
                 draw.text((x, y), char, font=self.text_font, spacing=0, fill=char_color, align="left")
         return im
 
-    def __draw_text_on_image(self, text: str):
+    def __draw_text_on_img(self, text: str):
+        text_lines = text.split("\n")
+        row_length = len(text_lines[0])
         new_height = self.image_dimensions[0]
-        new_width = math.floor(self.image_dimensions[1] * 1.2)
+        if self.text_size > 5:
+            width_to_height_ratio = 0.6125
+        else:
+            width_to_height_ratio = 0.6
+        # new_width = math.floor(self.image_dimensions[1] * width_to_height_ratio)
+        new_width = math.floor(row_length * self.text_size * width_to_height_ratio)
         im = Image.new(mode="RGB", size=(new_width, new_height), color=self.bg_color)
         draw = ImageDraw.Draw(im)
         draw.multiline_text((0, 0), text, font=self.text_font, spacing=1, fill=self.fg_color, align="left")
         return im
+
+    def __draw_text_on_img_effect(self, text):
+        text_lines = text.split("\n")
+        # due to text ending in new character line, need to use len(text_lines) - 1 to avoid the last empty line
+        new_height = math.floor((len(text_lines) - 1) * self.text_size)
+        new_width = math.floor(len(text_lines[0]) * (self.text_size / self.height_width_ratio))
+        im = Image.new(mode="RGB", size=(new_width, new_height),
+                       color=(0, 0, 0))
+        draw = ImageDraw.Draw(im)
+        total_cols = len(text_lines[0])
+        total_rows = len(text_lines)
+        # the last line is just an empty string due to the \n character being at the end
+        for i in range(len(text_lines) - 1):
+            for j, char in enumerate(text_lines[i]):
+                hue = self.__get_effect_hue(row=i, col=j, total_rows=total_rows, total_cols=total_cols)
+                char_color = Helper.hsv_to_rgb((hue, 1, 1))
+
+                x = j * (self.text_size / self.height_width_ratio)
+                y = i * self.text_size
+                draw.text((x, y), char, font=self.text_font, spacing=0, fill=char_color, align="left")
+        return im
+
+    def __get_effect_hue(self, row: int, col: int, total_rows: int, total_cols: int) -> int:
+        if self.effect == Effect.RAINBOW_HORIZONTAL:
+            return math.floor((180 / total_cols) * col)
+        elif self.effect == Effect.RAINBOW_HORIZONTAL_REV:
+            return 180 - math.floor((180 / total_cols) * col)
+        elif self.effect == Effect.RAINBOW_VERTICAL:
+            return math.floor((180 / total_rows) * row)
+        elif self.effect == Effect.RAINBOW_VERTICAL_REV:
+            return 180 - (180 / total_rows) * row
+        elif self.effect == Effect.RAINBOW_RADIAL:
+            center = (total_rows // 2, total_cols // 2)
+            max_distance = math.ceil(math.sqrt((center[0] ** 2) + (center[1] ** 2)))
+
+            distance = abs(center[0] - row) ** 2 + abs(center[1] - col) ** 2
+            distance = math.sqrt(distance)
+            center_closeness = (max_distance - distance) / max_distance
+            return min(math.floor(center_closeness * 180), 180)
+        elif self.effect == Effect.RAINBOW_RADIAL_REV:
+            center = (total_rows // 2, total_cols // 2)
+            max_distance = math.ceil(math.sqrt((center[0] ** 2) + (center[1] ** 2)))
+
+            distance = abs(center[0] - row) ** 2 + abs(center[1] - col) ** 2
+            distance = math.sqrt(distance)
+            center_closeness = (max_distance - distance) / max_distance
+            return 180 - min(math.floor(center_closeness * 180), 180)
 
 
 if __name__ == "__main__":
@@ -157,8 +217,9 @@ if __name__ == "__main__":
     background_color = (2, 0, 23)
     foreground_color = (46, 126, 255)
     original_img = Helper.load_image(filename)
-    iag = ImageAsciiGenerator(font_size=font_size, ascii_gradient=gradient, image=original_img, use_contrast=True,
-                              background_color=background_color, foreground_color=foreground_color)
+    iag = ImageAsciiGenerator(font_size=font_size, ascii_gradient=gradient, image=original_img, use_contrast=False,
+                              background_color=background_color, foreground_color=foreground_color,
+                              )
     final_img = iag.convert()
     final_img.show()
     ask = False

@@ -6,8 +6,13 @@ from ImageAsciiGenerator import ImageAsciiGenerator
 
 class CamToAscii:
 
-    def __init__(self, ascii_gradient="   .-;+=xX$█"):
+    def __init__(self, ascii_gradient="   .-;+=xX$█", background_color=(66, 5, 5), foreground_color=(164, 255, 45),
+                 font_size=8, invert_gradient=False):
         self.ascii_gradient = ascii_gradient
+        self.fg_color = foreground_color
+        self.bg_color = background_color
+        self.font_size = font_size
+        self.invert_gradient = invert_gradient
 
     def convert(self):
         # Open the default camera
@@ -25,12 +30,9 @@ class CamToAscii:
             if diff > 0.3:
                 # Display the captured frame
 
-                frame_dimensions = np.shape(frame)
-                scale_factor = 2
-                frame = cv.resize(frame, (frame_dimensions[1] * scale_factor, frame_dimensions[0] * scale_factor))
                 iag = ImageAsciiGenerator(image=frame, ascii_gradient=self.ascii_gradient,
-                                          foreground_color=(46, 126, 255),
-                                          background_color=(2, 0, 23), font_size=8, use_contrast=True)
+                                          foreground_color=self.fg_color,
+                                          background_color=self.bg_color, font_size=self.font_size, invert_gradient=self.invert_gradient)
                 result = iag.convert()
                 result = np.array(result)
                 result = cv.cvtColor(result, cv.COLOR_BGR2RGB)
@@ -49,5 +51,7 @@ class CamToAscii:
 
 if __name__ == "__main__":
     gradient = ' .-;+=xX$█'
-    cta = CamToAscii(ascii_gradient=gradient)
+    background_color = (2, 0, 23)
+    foreground_color = (46, 126, 255)
+    cta = CamToAscii(ascii_gradient=gradient, font_size=5, foreground_color=foreground_color, background_color=background_color, invert_gradient=True)
     cta.convert()
