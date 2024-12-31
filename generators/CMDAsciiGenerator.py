@@ -27,17 +27,19 @@ class CMDAsciiGenerator:
     """
 
     width_height_ratio = 3
+    result = None
 
-    def __init__(self, image: np.array, terminal_width: int, ascii_gradient=" .-;+=xX$█"):
+    def __init__(self, image: np.array, terminal_width=220, ascii_gradient=" .-;+=xX$█", invert_gradient=False):
         """CMDAsciiGenerator constructor
 
         :param image: image to be converted
         :param terminal_width: maximum wanted width of the image in terminal
         :param ascii_gradient: brightness gradient given as a string which the pixels are mapped to
+        :param invert_gradient: reverses the gradient
         """
 
         self.image = image
-        self.ascii_gradient = ascii_gradient
+        self.ascii_gradient = ascii_gradient[::-1] if invert_gradient else ascii_gradient
         self.terminal_width = int(terminal_width // self.width_height_ratio)
         self.divider = 255 / (len(self.ascii_gradient) - 1)
 
@@ -52,7 +54,12 @@ class CMDAsciiGenerator:
         """
 
         resized = self.__adjust_image()
-        return self.__pixels_to_txt(resized)
+        self.result = self.__pixels_to_txt(resized)
+        return self.result
+
+    def show_result(self):
+        """Shows the result of the class. Should be called after convert method"""
+        print(f'\n\x1b[94m{self.result}\x1b[0m')
 
     def __adjust_image(self) -> list[list]:
         # converts into HSV to use Value later for getting the correct character from gradient
@@ -83,7 +90,7 @@ class CMDAsciiGenerator:
 
 if __name__ == "__main__":
 
-    test_file_path = "./testImages/cyberpunkGasMask.png"
+    test_file_path = "../testImages/cyberpunkGasMask.png"
     TEST = False
 
     gradient = " .-;+=xX$"

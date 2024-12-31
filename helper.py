@@ -1,6 +1,6 @@
 import cv2 as cv
 from tkinter import Tk
-from tkinter.filedialog import askopenfilename
+from tkinter.filedialog import askopenfilename, askdirectory
 import sys
 
 
@@ -45,6 +45,19 @@ class Helper:
             print("No file was selected. Exiting...")
             exit(1)
         return filename
+
+    @staticmethod
+    def get_directory():
+        """Prompts the user with a file dialog and returns the directory picked
+
+        :return: file path to the selected directory
+        """
+        Tk().withdraw()
+        directory = askdirectory()
+        if len(directory) < 1:
+            print("No directory was selected. Exiting...")
+            return None
+        return directory
 
     @staticmethod
     def hsv_to_rgb(hsv_color):
@@ -106,4 +119,3 @@ class Helper:
         text = f'{prefix}...  {current}'
         sys.stdout.write(f'\r{text}')
         sys.stdout.flush()
-

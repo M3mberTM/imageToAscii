@@ -1,88 +1,217 @@
 import argparse
-from typing import Optional
-import re
-
-"""
-ARGUMENTS
-type - which ascii generator to run (Cmd, Image, video)
-gradient - optional (text gradient to use for the image)
-
-additional arguments:
-    if the type is not cmd line (ignore if command line is set):
-        size - character size to use
-        f_color - text color
-        b_color - background color
-        advanced_mode - boolean, increases contrast of the whole image (takes slightly longer)
-    if command line:
-    terminal width - the amount of characters in terminal line on a given computer
-    -- defines optional arguments
-"""
+from helper import Helper
+from generators.CMDAsciiGenerator import CMDAsciiGenerator
+from generators.ImageAsciiGenerator import ImageAsciiGenerator
+from generators.VideoAsciiGenerator import VideoAsciiGenerator
+from generators.CamToAscii import CamToAscii
+from enum import Enum
+from Effect import Effect
 
 
-def string_to_rgb(text: str) -> tuple:
-    rgb = text.split(",")
-    if len(rgb) < 3 or len(rgb) > 3:
-        raise Exception(f'Not enough numbers given to form a full RGB color')
+class AppMode(Enum):
+    CMD = 0
+    IMAGE = 1
+    VIDEO = 2
+    CAM = 3
 
-    fg = []
-    for i in rgb:
-        temp = i.strip()
-        if not re.search("^((1?[0-9]?[0-9])|2[0-4][0-9]|25[0-5])$", temp):
-            raise Exception(f'{i} -> Number is outside the allowed range')
-        fg.append(int(temp))
-    return tuple(fg)
+
+def run_app(mode: int):
+    if mode == AppMode.CMD.value:
+        filename = Helper.get_file()
+        img = Helper.load_image(filename)
+        terminal_width = get_argument("Terminal width (220): ", 220, int)
+        ascii_gradient = get_argument("Gradient ( .-;+=xX$█): ", " .-;+=xX$█", str)
+        invert_gradient = get_argument("Invert gradient (y/n)? (False): ", False, bool)
+
+        print("-----GENERATOR INFORMATION-----")
+        print(f'File: {filename}')
+        print(f'Terminal width: {terminal_width}')
+        print(f'Ascii gradient: "{ascii_gradient}"')
+        print(f'Invert gradient: {invert_gradient}')
+        print("--------------------------------")
+
+        generator = CMDAsciiGenerator(img, terminal_width=terminal_width, ascii_gradient=ascii_gradient,
+                                      invert_gradient=invert_gradient)
+        generator.convert()
+        generator.show_result()
+    elif mode == AppMode.IMAGE.value:
+        filename = Helper.get_file()
+        img = Helper.load_image(filename)
+        font_size = get_argument("Font size | 8: ", 8, int)
+        ascii_gradient = get_argument("Gradient | ' .-;+=xX$█': ", " .-;+=xX$█", str)
+        use_contrast = get_argument("Get higher contrast (y/n)? | False: ", False, bool)
+        str_bg_color = get_argument("Background color | (2, 0, 23): ", None, str)
+        str_fg_color = get_argument("Foreground color | (46, 126, 255): ", None, str)
+        invert_gradient = get_argument("Invert gradient (y/n)? | False: ", False, bool)
+        effect = get_argument("Effect (leave empty for no effect)? ", None, int)
+
+        # some editing of values before putting it in the generator
+        bg_color = extract_color(str_bg_color, (2, 0, 23))
+        fg_color = extract_color(str_fg_color, (46, 126, 255))
+        if effect is not None:
+            effect = None if effect < 0 or effect > 3 else Effect(effect)
+
+        print("-----GENERATOR INFORMATION-----")
+        print(f'File: {filename}')
+        print(f'Font size: {font_size}')
+        print(f'Ascii gradient: "{ascii_gradient}"')
+        print(f'Use contrast: {use_contrast}')
+        print(f'Background color: {bg_color}')
+        print(f'Foreground color: {fg_color}')
+        print(f'Invert gradient: {invert_gradient}')
+        print(f'Effect: {effect.value if effect is not None else None}')
+        print("--------------------------------")
+
+        generator = ImageAsciiGenerator(img, font_size=font_size, foreground_color=fg_color, background_color=bg_color,
+                                        ascii_gradient=ascii_gradient, invert_gradient=invert_gradient,
+                                        use_contrast=use_contrast, effect=effect)
+        generator.convert()
+        generator.show_result()
+    elif mode == AppMode.VIDEO.value:
+        filename = Helper.get_file()
+        font_size = get_argument("Font size | 8: ", 8, int)
+        ascii_gradient = get_argument("Gradient | ' .-;+=xX$█': ", " .-;+=xX$█", str)
+        use_contrast = get_argument("Get higher contrast (y/n)? | False: ", False, bool)
+        str_bg_color = get_argument("Background color | (2, 0, 23): ", None, str)
+        str_fg_color = get_argument("Foreground color | (46, 126, 255): ", None, str)
+        invert_gradient = get_argument("Invert gradient (y/n)? | False: ", False, bool)
+        vid_start = get_argument("Timestamp of video start | 0:00: ", None, float)
+        vid_end = get_argument("Timestamp of video end | end of the video: ", None, float)
+        effect = get_argument("Effect (leave empty for no effect)? ", None, int)
+
+        # some editing of values before putting it in the generator
+        bg_color = extract_color(str_bg_color, (2, 0, 23))
+        fg_color = extract_color(str_fg_color, (46, 126, 255))
+        if effect is not None:
+            effect = None if effect < 0 or effect > 3 else Effect(effect)
+
+        print("-----GENERATOR INFORMATION-----")
+        print(f'File: {filename}')
+        print(f'Font size: {font_size}')
+        print(f'Ascii gradient: "{ascii_gradient}"')
+        print(f'Use contrast: {use_contrast}')
+        print(f'Background color: {bg_color}')
+        print(f'Foreground color: {fg_color}')
+        print(f'Invert gradient: {invert_gradient}')
+        print(f'Video start cut: {vid_start}')
+        print(f'Video end cut: {vid_end}')
+        print(f'Effect: {effect.value if effect is not None else None}')
+        print("--------------------------------")
+
+        print("THE VIDEO WILL NOT BE PREVIEWED AND WILL BE SAVED INSTEAD")
+        generator = VideoAsciiGenerator(filename, font_size=font_size, gradient=ascii_gradient,
+                                        use_contrast=use_contrast, background_color=bg_color, foreground_color=fg_color,
+                                        invert_gradient=invert_gradient, video_end=vid_end, video_start=vid_start,
+                                        effect=effect)
+        generator.convert()
+
+    elif mode == AppMode.CAM.value:
+        font_size = get_argument("Font size | 8: ", 8, int)
+        ascii_gradient = get_argument("Gradient | ' .-;+=xX$█': ", " .-;+=xX$█", str)
+        str_bg_color = get_argument("Background color | (2, 0, 23): ", None, str)
+        str_fg_color = get_argument("Foreground color | (46, 126, 255): ", None, str)
+        invert_gradient = get_argument("Invert gradient (y/n)? | False: ", False, bool)
+        show_webcam = get_argument("Show webcam (y/n)? | False ", False, bool)
+
+        # some editing of values before putting it in the generator
+        bg_color = extract_color(str_bg_color, (2, 0, 23))
+        fg_color = extract_color(str_fg_color, (46, 126, 255))
+
+        print("-----GENERATOR INFORMATION-----")
+        print(f'Font size: {font_size}')
+        print(f'Ascii gradient: "{ascii_gradient}"')
+        print(f'Background color: {bg_color}')
+        print(f'Foreground color: {fg_color}')
+        print(f'Invert gradient: {invert_gradient}')
+        print(f'Show webcam: {show_webcam}')
+        print("--------------------------------")
+
+        print("PRESS 'Q' TO STOP THE CAMERA")
+        generator = CamToAscii(gradient=ascii_gradient, foreground_color=fg_color, background_color=bg_color,
+                               font_size=font_size, show_webcam=show_webcam, invert_gradient=invert_gradient)
+        generator.convert()
+    else:
+        raise Exception("How did we get here!?")
+
+
+def extract_color(text: str, default: tuple) -> tuple:
+    try:
+        split = text.split(",", 2)
+    except AttributeError:
+        return default
+    vals = []
+    for num in split:
+        if num.strip().isnumeric():
+            val = int(num)
+            if val < 0 or val > 255:
+                vals.append(None)
+            else:
+                vals.append(val)
+        else:
+            vals.append(None)
+    if len(vals) != 3 or None in vals:
+        return default
+    else:
+        return tuple(vals)
+
+
+def get_argument(question: str, default_val, var_type):
+    answer = input(question)
+    if var_type == int:
+        if answer.isnumeric():
+            return int(answer)
+        else:
+            return default_val
+    if var_type == float:
+        try:
+            return float(answer)
+        except ValueError:
+            return default_val
+    if var_type == str:
+        if len(answer.strip()) <= 0:
+            return default_val
+        else:
+            return answer
+    if var_type == bool:
+        if answer.lower() == 'y' or answer.lower() == "yes":
+            return True
+        elif answer.lower() == "n" or answer.lower() == "no":
+            return False
+        else:
+            return default_val
 
 
 parser = argparse.ArgumentParser()
 
-# main arguments
-parser.add_argument("type",
-                    help="Decides which generator to use (0 - in command line, 1 - creates an image, 2 - converts videos)",
-                    type=int)
-parser.add_argument("-g", "--gradient",
-                    help="String | specifies text which to use to convert the image | Format: ' .-;+=xX$█'")
-
-# side arguments
-parser.add_argument("-w", "--width", help="Int | Amount of characters that fit into single line of terminal", type=int)
-parser.add_argument("-s", "--size", help="Int | Size of text to use in the conversion", type=int)
-parser.add_argument("-f", "--fgcolor", help="RGB Color of the text | Format: '124, 24, 38'")
-parser.add_argument("-b", "--bgcolor", help="RGB Color of the background | Format: '124, 24, 38'")
-parser.add_argument("-a", "--advanced",
-                    help="Boolean | Uses a different algorithm to increase the contrast and color in the image (takes slightly longer to run)",
-                    action="store_true")
+parser.add_argument("mode",
+                    help="str or int | Chooses which mode you want to use")
 args = parser.parse_args()
 
-print(args)
+modes = {"cmd": AppMode.CMD.value, "image": AppMode.IMAGE.value, "video": AppMode.VIDEO.value, "cam": AppMode.CAM.value}
 
-gradient = " .-;+=xX$█"
-
-terminal_width = 210
-
-text_size = 8
-bg_color = (33, 21, 8)
-fg_color = (77, 255, 0)
-advanced = False
-
-if args.gradient:
-    gradient = args.gradient
-
-if not args.type:
-    if args.width:
-        terminal_width = args.width
-    print("Command line")
+if not args.mode.isnumeric():
+    try:
+        num = modes[args.mode.lower()]
+        passed = True
+    except KeyError:
+        passed = False
 else:
-    if args.size:
-        text_size = args.size
-    if args.advanced:
-        advanced = args.advanced
-    if args.fgcolor:
-        fg_color = string_to_rgb(args.fgcolor)
-    if args.bgcolor:
-        bg_color = string_to_rgb(args.bgcolor)
-
-    if args.type == 1:
-        print("Image conversion")
-    elif args.type == 2:
-        print("Video conversion")
+    num = int(args.mode)
+    if num < 0 or num > 3:
+        passed = False
     else:
-        print("Incorrect")
+        passed = True
+
+if passed:
+    run_app(num)
+else:
+    red_text = "\x1b[31m"
+    reset = "\x1b[0m"
+    print(f'{red_text}Warning: Incorrect argument usage{reset}')
+    print("usage: main.py [-h] mode")
+    print("\n-----MODES-----")
+    print("CMD: 0")
+    print("Image: 1")
+    print("Video: 2")
+    print("Cam: 3")
+    print("----------------")

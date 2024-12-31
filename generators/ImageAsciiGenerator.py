@@ -44,10 +44,11 @@ class ImageAsciiGenerator:
     """
 
     height_width_ratio = 2
+    result = None
 
     def __init__(self, image: np.array, font_size=8, ascii_gradient=' .-;+=xX$█', use_contrast=False,
                  background_color=(66, 5, 5), foreground_color=(164, 255, 45), invert_gradient=False, effect=None):
-        """ImageAsciiGenerator
+        """ImageAsciiGenerator constructor.
 
         :param image: original image to be converted
         :param font_size: size of the text to use in the final image
@@ -83,12 +84,23 @@ class ImageAsciiGenerator:
         resized = self.__adjust_image()
         final_txt = self.__pixels_to_txt(resized)
         if self.effect is not None:
-            return self.__draw_text_on_img_effect(final_txt)
+            self.result = self.__draw_text_on_img_effect(final_txt)
+            return self.result
 
         if self.use_contrast:
-            return self.__draw_text_on_img_with_contrast(final_txt)
+            self.result = self.__draw_text_on_img_with_contrast(final_txt)
+            return self.result
         else:
-            return self.__draw_text_on_img(final_txt)
+            self.result = self.__draw_text_on_img(final_txt)
+            return self.result
+
+    def show_result(self):
+        self.result.show()
+        if input("Do you want to save? (y/n) ") == 'y':
+            directory = Helper.get_directory()
+            if directory is not None:
+                img_name = input("What do you want to name the image? ")
+                self.result.save(f'{directory}/{img_name}.png')
 
     def __get_gradient_index(self, brightness: float):
         # limits the range of values to just x values, where x represents the length of the gradient
@@ -187,26 +199,21 @@ class ImageAsciiGenerator:
             return math.floor((180 / total_rows) * row)
         elif self.effect == Effect.RAINBOW_VERTICAL_REV:
             return 180 - (180 / total_rows) * row
-        elif self.effect == Effect.RAINBOW_RADIAL:
+        elif self.effect == Effect.RAINBOW_RADIAL or self.effect == Effect.RAINBOW_RADIAL_REV:
             center = (total_rows // 2, total_cols // 2)
             max_distance = math.ceil(math.sqrt((center[0] ** 2) + (center[1] ** 2)))
 
             distance = abs(center[0] - row) ** 2 + abs(center[1] - col) ** 2
             distance = math.sqrt(distance)
             center_closeness = (max_distance - distance) / max_distance
-            return min(math.floor(center_closeness * 180), 180)
-        elif self.effect == Effect.RAINBOW_RADIAL_REV:
-            center = (total_rows // 2, total_cols // 2)
-            max_distance = math.ceil(math.sqrt((center[0] ** 2) + (center[1] ** 2)))
-
-            distance = abs(center[0] - row) ** 2 + abs(center[1] - col) ** 2
-            distance = math.sqrt(distance)
-            center_closeness = (max_distance - distance) / max_distance
-            return 180 - min(math.floor(center_closeness * 180), 180)
+            if self.effect == Effect.RAINBOW_RADIAL:
+                return min(math.floor(center_closeness * 180), 180)
+            else:
+                return 180 - min(math.floor(center_closeness * 180), 180)
 
 
 if __name__ == "__main__":
-    test_file_path = "./testImages/cyberpunkGasMask.png"  # test image size 1664 x 1664
+    test_file_path = "../testImages/cyberpunkGasMask.png"  # test image size 1664 x 1664
     TEST = False
     if not TEST:
         filename = Helper.get_file()
