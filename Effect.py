@@ -28,4 +28,6 @@ class Effect(Enum):
     RAINBOW_HORIZONTAL_REV = 3
     RAINBOW_VERTICAL_REV = 4
     RAINBOW_RADIAL_REV = 5
-    VIDEO_RAINBOW_GRADUAL = 6  # works only on video
+    ORIGINAL_COLOR = 6
+
+    VIDEO_RAINBOW_GRADUAL = 100  # works only on video

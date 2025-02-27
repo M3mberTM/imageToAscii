@@ -48,8 +48,10 @@ def run_app(mode: int):
         # some editing of values before putting it in the generator
         bg_color = extract_color(str_bg_color, (2, 0, 23))
         fg_color = extract_color(str_fg_color, (46, 126, 255))
-        if effect is not None:
-            effect = None if effect < 0 or effect > 3 else Effect(effect)
+        try:
+            effect = Effect(effect)
+        except ValueError:
+            effect = None
 
         print("-----GENERATOR INFORMATION-----")
         print(f'File: {filename}')
@@ -82,8 +84,10 @@ def run_app(mode: int):
         # some editing of values before putting it in the generator
         bg_color = extract_color(str_bg_color, (2, 0, 23))
         fg_color = extract_color(str_fg_color, (46, 126, 255))
-        if effect is not None:
-            effect = None if effect < 0 or effect > 3 else Effect(effect)
+        try:
+            effect = Effect(effect)
+        except ValueError:
+            effect = None
 
         print("-----GENERATOR INFORMATION-----")
         print(f'File: {filename}')

@@ -69,7 +69,7 @@ class Helper:
         c = hsv_color[1] * hsv_color[2]
         h = hsv_color[0] / 30
         x = c * (1 - abs((h % 2) - 1))
-        m = hsv_color[1] - c
+        m = hsv_color[2] - c
 
         x = int((x + m) * 255)
         c = int((c + m) * 255)

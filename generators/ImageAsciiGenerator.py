@@ -45,6 +45,7 @@ class ImageAsciiGenerator:
 
     height_width_ratio = 2
     result = None
+    effect_lookup = None
 
     def __init__(self, image: np.array, font_size=8, ascii_gradient=' .-;+=xX$█', use_contrast=False,
                  background_color=(66, 5, 5), foreground_color=(164, 255, 45), invert_gradient=False, effect=None):
@@ -83,6 +84,7 @@ class ImageAsciiGenerator:
         """
         resized = self.__adjust_image()
         final_txt = self.__pixels_to_txt(resized)
+        self.get_color_array(resized)
         if self.effect is not None:
             self.result = self.__draw_text_on_img_effect(final_txt)
             return self.result
@@ -93,6 +95,81 @@ class ImageAsciiGenerator:
         else:
             self.result = self.__draw_text_on_img(final_txt)
             return self.result
+
+    def get_color_array(self, adjusted_img: np.array):
+        img_shape = np.shape(adjusted_img)
+        if self.effect == Effect.RAINBOW_HORIZONTAL:
+            self.effect_lookup = self.generate_horizontal_rainbow_array(img_shape, False)
+        elif self.effect == Effect.RAINBOW_HORIZONTAL_REV:
+            self.effect_lookup = self.generate_horizontal_rainbow_array(img_shape, True)
+        elif self.effect == Effect.RAINBOW_VERTICAL:
+            self.effect_lookup = self.generate_vertical_rainbow_array(img_shape, False)
+        elif self.effect == Effect.RAINBOW_VERTICAL_REV:
+            self.effect_lookup = self.generate_vertical_rainbow_array(img_shape, True)
+        elif self.effect == Effect.RAINBOW_RADIAL:
+            self.effect_lookup = self.generate_radial_rainbow_array(img_shape, False)
+        elif self.effect == Effect.RAINBOW_RADIAL_REV:
+            self.effect_lookup = self.generate_radial_rainbow_array(img_shape, True)
+        elif self.effect == Effect.ORIGINAL_COLOR:
+            self.effect_lookup = self.generate_original_color_array(img_shape, adjusted_img, False)
+        else:
+            self.effect = None
+    def generate_original_color_array(self, array_shape: tuple, adjusted_img: np.array, reverse: bool):
+        width = array_shape[1]
+        height = array_shape[0]
+        effect_array = np.zeros(array_shape, dtype=int)
+        for row in range(height):
+            for col in range(width):
+                if not reverse:
+                    pixel_color = adjusted_img[row, col]
+                    effect_array[row, col] = [int(pixel_color[0]), int(pixel_color[1]), int(pixel_color[2])]
+                else:
+                    pixel_color = adjusted_img[row, col]
+                    effect_array[row, col] = [255 - int(pixel_color[0]), 255 - int(pixel_color[1]), 255 - int(pixel_color[2])]
+        return effect_array
+
+
+    def generate_radial_rainbow_array(self, array_shape: tuple, reverse: bool):
+        width = array_shape[1]
+        height = array_shape[0]
+        effect_array = np.zeros((height, width))
+        for row in range(height):
+            for col in range(width):
+                center = (height // 2, width // 2)
+                max_distance = math.ceil(math.sqrt((center[0] ** 2) + (center[1] ** 2)))
+
+                distance = abs(center[0] - row) ** 2 + abs(center[1] - col) ** 2
+                distance = math.sqrt(distance)
+                center_closeness = (max_distance - distance) / max_distance
+                if not reverse:
+                    effect_array[row, col] = min(math.floor(center_closeness * 180), 180)
+                else:
+                    effect_array[row, col] = 180 - min(math.floor(center_closeness * 180), 180)
+        return effect_array
+
+    def generate_horizontal_rainbow_array(self, array_shape: tuple, reverse: bool):
+        width = array_shape[1]
+        height = array_shape[0]
+        effect_array = np.zeros((height, width))
+        for row in range(height):
+            for col in range(width):
+                if not reverse:
+                    effect_array[row, col] = math.floor((180 / width) * col)
+                else:
+                    effect_array[row, col] = 180 - math.floor((180 / width) * col)
+        return effect_array
+
+    def generate_vertical_rainbow_array(self, array_shape: tuple, reverse: bool):
+        width = array_shape[1]
+        height = array_shape[0]
+        effect_array = np.zeros((height, width))
+        for row in range(height):
+            for col in range(width):
+                if not reverse:
+                    effect_array[row, col] = math.floor((180 / height) * row)
+                else:
+                    effect_array[row, col] = 180 - math.floor((180 / height) * row)
+        return effect_array
 
     def show_result(self):
         self.result.show()
@@ -182,9 +259,12 @@ class ImageAsciiGenerator:
         # the last line is just an empty string due to the \n character being at the end
         for i in range(len(text_lines) - 1):
             for j, char in enumerate(text_lines[i]):
-                hue = self.__get_effect_hue(row=i, col=j, total_rows=total_rows, total_cols=total_cols)
-                char_color = Helper.hsv_to_rgb((hue, 1, 1))
-
+                # hue = self.__get_effect_hue(row=i, col=j, total_rows=total_rows, total_cols=total_cols)
+                hue = self.effect_lookup[i, j//2]
+                if self.effect != Effect.ORIGINAL_COLOR:
+                    char_color = Helper.hsv_to_rgb((hue, 1, 1))
+                else:
+                    char_color = Helper.hsv_to_rgb((hue[0], hue[1] / 255, hue[2] / 255))
                 x = j * (self.text_size / self.height_width_ratio)
                 y = i * self.text_size
                 draw.text((x, y), char, font=self.text_font, spacing=0, fill=char_color, align="left")
