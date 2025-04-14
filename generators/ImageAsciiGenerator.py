@@ -75,7 +75,10 @@ class ImageAsciiGenerator:
         self.bg_color = background_color
         self.fg_color = foreground_color
         self.effect = effect
-        self.divider = 255 / (len(self.ascii_gradient))
+        if len(ascii_gradient) < 2:
+            self.divider = 9999
+        else:
+            self.divider = 255 / (len(self.ascii_gradient)-1)
 
     def convert(self) -> Image:
         """Main function of the ImageAsciiGenerator Class
@@ -181,7 +184,7 @@ class ImageAsciiGenerator:
 
     def __get_gradient_index(self, brightness: float):
         # limits the range of values to just x values, where x represents the length of the gradient
-        return int(brightness // self.divider) - 1
+        return round(brightness / self.divider)
 
     def __pixels_to_txt(self, resized_img) -> str:
         # uses StringIO to save up on memory
